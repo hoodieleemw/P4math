@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chiikawa 數學進化：極致體驗版</title>
+    <style>
+        :root {
+            --pink: #ff80ab; --blue: #4fc3f7; --purple: #b39ddb; --green: #81c784; --gold: #ffd54f;
+            --shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        * { box-sizing: border-box; touch-action: none; -webkit-user-select: none; }
+        body { margin: 0; background: #fdf2f4; font-family: "PingFang TC", sans-serif; height: 100vh; display: flex; overflow: hidden; }
+
+        /* 左側佈局 */
+        .left-container { width: 50%; display: flex; flex-direction: column; padding: 20px; gap: 20px; border-right: 1px solid rgba(0,0,0,0.05); }
+
+        /* 戰鬥區：視覺層次 */
+        .battle-view {
+            height: 42%; background: linear-gradient(to bottom, #fff, #fff9fb); border-radius: 40px; 
+            display: flex; justify-content: space-around; align-items: center; box-shadow: var(--shadow);
+            position: relative; overflow: hidden; border: 4px solid #fff;
+        }
+        .entity { text-align: center; width: 150px; transition: transform 0.2s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        .entity-icon { font-size: 90px; display: block; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.1)); }
+        
+        /* 狀態條美化 */
+        .bar-box { margin-bottom: 8px; width: 100%; }
+        .bar-label { font-size: 0.75rem; font-weight: 800; margin-bottom: 4px; display: flex; justify-content: space-between; color: #555; }
+        .bar-outer { width: 100%; height: 12px; background: #eee; border-radius: 10px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .bar-inner { height: 100%; width: 100%; transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        /* 回答與技能區 */
+        .control-view { flex: 1; background: white; border-radius: 40px; padding: 20px; display: flex; flex-direction: column; box-shadow: var(--shadow); }
+        .skill-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
+        .skill-btn { 
+            border: 2px solid #f0f0f0; border-radius: 18px; padding: 10px 5px; text-align: center;
+            background: #fff; cursor: pointer; transition: all 0.2s; position: relative;
+        }
+        .skill-btn b { display: block; font-size: 0.85rem; color: #333; }
+        .skill-btn span { font-size: 0.65rem; color: #999; font-weight: bold; }
+        .skill-btn.active { border-color: var(--purple); background: #f3e5f5; transform: translateY(-3px); }
+
+        #q-text { font-size: 2.5rem; font-weight: 900; text-align: center; color: #2c3e50; letter-spacing: 2px; }
+        #u-input { font-size: 3rem; color: var(--blue); font-weight: 900; text-align: center; min-height: 1.2em; margin-bottom: 10px; text-shadow: 0 2px 5px rgba(79, 195, 247, 0.2); }
+
+        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; flex: 1; }
+        .key { 
+            border: none; background: #f8f9fa; font-size: 1.5rem; font-weight: bold; border-radius: 20px; 
+            box-shadow: 0 5px 0 #e0e0e0; cursor: pointer; transition: 0.1s; color: #444;
+        }
+        .key:active { transform: translateY(3px); box-shadow: 0 2px 0 #e0e0e0; }
+        .key-enter { background: var(--blue); color: white; grid-column: span 2; box-shadow: 0 5px 0 #0288d1; }
+        .key-enter:active { box-shadow: 0 2px 0 #0288d1; }
+
+        /* 右側算草區：專業繪圖感 */
+        .right-scratch { flex: 1; margin: 20px; background: white; border-radius: 40px; border: 2px solid #eee; position: relative; box-shadow: var(--shadow); }
+        #scratch-pad { width: 100%; height: 100%; border-radius: 40px; cursor: crosshair; }
+        .scratch-ui { position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; }
+        .btn-ui { background: rgba(0,0,0,0.05); border: none; padding: 10px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+
+        /* 動畫效果庫 */
+        @keyframes hit { 0% { transform: scale(1); } 50% { transform: scale(0.8) rotate(5deg); } 100% { transform: scale(1); } }
+        .hit-anim { animation: hit 0.3s ease; }
+        .shake { animation: shake 0.4s ease; border: 4px solid var(--pink) !important; }
+        @keyframes shake { 0%, 100% {transform:translateX(0)} 20% {transform:translateX(-10px)} 40% {transform:translateX(10px)} 60% {transform:translateX(-10px)} 80% {transform:translateX(10px)} }
+        
+        /* 獎勵視窗最佳化 */
+        #reward-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(255,255,255,0.9); z-index: 200; display: none;
+            flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(5px);
+        }
+        .reward-btn { 
+            width: 80%; padding: 22px; margin: 12px; border-radius: 25px; border: none; 
+            font-size: 1.3rem; font-weight: bold; color: white; cursor: pointer; transition: 0.2s;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        .reward-btn:hover { transform: scale(1.03); }
+    </style>
+</head>
+<body>
+
+<div class="left-container" id="game-main">
+    <div class="battle-view" id="battle-box">
+        <div class="entity" id="player-node">
+            <span class="entity-icon" id="p-icon">🐰</span>
+            <div class="bar-box">
+                <div class="bar-label"><span>❤️ HP</span><span id="p-hp-txt">100</span></div>
+                <div class="bar-outer"><div id="p-hp-bar" class="bar-inner" style="background:var(--green); width:100%"></div></div>
+            </div>
+            <div class="bar-box">
+                <div class="bar-label"><span>🧬 EXP</span><span id="p-exp-txt">0</span></div>
+                <div class="bar-outer"><div id="p-exp-bar" class="bar-inner" style="background:var(--purple); width:0%"></div></div>
+            </div>
+        </div>
+
+        <div style="text-align:center; opacity:0.3; font-weight:900;">
+            <div style="font-size: 1.2rem;">STAGE</div>
+            <div id="lv-display" style="font-size: 2rem;">1</div>
+        </div>
+
+        <div class="entity" id="monster-node">
+            <span class="entity-icon" id="m-icon">🐭</span>
+            <div class="bar-box" style="margin-top: 25px;">
+                <div class="bar-label"><span>😈 MONSTER</span><span id="m-hp-txt">100</span></div>
+                <div class="bar-outer"><div id="m-hp-bar" class="bar-inner" style="background:var(--pink); width:100%"></div></div>
+            </div>
+        </div>
+
+        <div id="reward-modal">
+            <div style="font-size: 1.5rem; font-weight: 900; margin-bottom: 20px; color: #333;">選擇獎勵 ACTION!</div>
+            <button class="reward-btn" style="background:var(--pink)" onclick="choose('atk')">⚔️ 發動重擊 (傷害)</button>
+            <button class="reward-btn" style="background:var(--purple)" onclick="choose('exp')">🧬 吸收精華 (進化)</button>
+        </div>
+    </div>
+
+    <div class="control-view">
+        <div class="skill-grid">
+            <div class="skill-btn" onclick="useSkill('hint', 30)"><b>📸 提示</b><span>30 EXP</span></div>
+            <div class="skill-btn" id="s-shield" onclick="useSkill('shield', 50)"><b>🛡️ 護盾</b><span>50 EXP</span></div>
+            <div class="skill-btn" id="s-double" onclick="useSkill('double', 40)"><b>🔥 雙倍</b><span>40 EXP</span></div>
+            <div class="skill-btn" style="border-color: #ffcc80;" onclick="useSkill('heal', 45)"><b>🍜 拉麵</b><span>45 EXP</span></div>
+        </div>
+        
+        <div id="q-text">12 + 5 × 3</div>
+        <div id="u-input"></div>
+        <div id="hint-text" style="color:var(--purple); text-align:center; font-weight:bold; height:1em; font-size:0.9rem;"></div>
+
+        <div class="numpad">
+            <button class="key" onclick="tap(1)">1</button><button class="key" onclick="tap(2)">2</button><button class="key" onclick="tap(3)">3</button>
+            <button class="key" onclick="tap(4)">4</button><button class="key" onclick="tap(5)">5</button><button class="key" onclick="tap(6)">6</button>
+            <button class="key" onclick="tap(7)">7</button><button class="key" onclick="tap(8)">8</button><button class="key" onclick="tap(9)">9</button>
+            <button class="key" style="color:var(--pink)" onclick="clr()">C</button>
+            <button class="key" onclick="tap(0)">0</button>
+            <button class="key key-enter" onclick="check()">SUBMIT ⚔️</button>
+        </div>
+    </div>
+</div>
+
+<div class="right-scratch">
+    <div class="scratch-ui">
+        <span style="color:#ccc; font-weight:bold; line-height:35px;">SCRATCH PAD</span>
+        <button class="btn-ui" onclick="clearScratch()">🧹 CLEAR</button>
+    </div>
+    <canvas id="scratch-pad"></canvas>
+</div>
+
+<script>
+    let pHP = 100, pEXP = 0, mHP = 100, lv = 1;
+    let currentAns = 0, inputStr = "", currentHint = "";
+    let hasShield = false, hasDouble = false;
+
+    const canvas = document.getElementById('scratch-pad');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    function init() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        ctx.strokeStyle = "rgba(69, 90, 100, 0.8)"; 
+        ctx.lineWidth = 5; 
+        ctx.lineCap = "round";
+        generate();
+    }
+
+    canvas.addEventListener('pointerdown', e => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY); });
+    canvas.addEventListener('pointermove', e => { if(drawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } });
+    canvas.addEventListener('pointerup', () => drawing = false);
+    function clearScratch() { ctx.clearRect(0,0,canvas.width,canvas.height); }
+
+    function generate() {
+        let a = Math.floor(Math.random()*10*lv)+5, b = Math.floor(Math.random()*9)+2, c = Math.floor(Math.random()*10)+1;
+        let isParen = lv >= 3;
+        currentAns = isParen ? (a + b) * c : a + b * c;
+        document.getElementById('q-text').innerText = isParen ? `(${a} + ${b}) × ${c}` : `${a} + ${b} × ${c}`;
+        currentHint = isParen ? `💡 括號先算: ${a}+${b}` : `💡 乘法先算: ${b}×${c}`;
+        inputStr = ""; document.getElementById('hint-text').innerText = "";
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('u-input').innerText = inputStr || "?";
+        document.getElementById('p-hp-txt').innerText = pHP;
+        document.getElementById('p-hp-bar').style.width = pHP + "%";
+        document.getElementById('p-exp-txt').innerText = pEXP;
+        document.getElementById('p-exp-bar').style.width = (pEXP % 100) + "%";
+        document.getElementById('m-hp-txt').innerText = mHP;
+        document.getElementById('m-hp-bar').style.width = mHP + "%";
+        document.getElementById('lv-display').innerText = lv;
+        
+        document.getElementById('s-shield').classList.toggle('active', hasShield);
+        document.getElementById('s-double').classList.toggle('active', hasDouble);
+        
+        const icons = ["🐰", "🐰", "🦊", "⚔️", "👑"];
+        document.getElementById('p-icon').innerText = icons[Math.min(Math.floor(pEXP/100)+1, 4)];
+    }
+
+    function useSkill(type, cost) {
+        if(pEXP < cost) {
+            document.getElementById('game-main').classList.add('shake');
+            setTimeout(() => document.getElementById('game-main').classList.remove('shake'), 400);
+            return;
+        }
+        pEXP -= cost;
+        if(type === 'hint') document.getElementById('hint-text').innerText = currentHint;
+        if(type === 'shield') hasShield = true;
+        if(type === 'double') hasDouble = true;
+        if(type === 'heal') pHP = Math.min(100, pHP + 35);
+        updateUI();
+    }
+
+    function tap(n) { if(inputStr.length < 6) inputStr += n; updateUI(); }
+    function clr() { inputStr = ""; updateUI(); }
+
+    function check() {
+        if(parseInt(inputStr) === currentAns) {
+            document.getElementById('reward-modal').style.display = 'flex';
+            document.getElementById('player-node').classList.add('hit-anim');
+            setTimeout(() => document.getElementById('player-node').classList.remove('hit-anim'), 300);
+        } else {
+            if(hasShield) {
+                alert("🛡️ SHIELD! 護盾擋住了怪獸的反擊！");
+                hasShield = false;
+            } else {
+                pHP -= 20;
+                document.getElementById('battle-box').classList.add('shake');
+                setTimeout(() => document.getElementById('battle-box').classList.remove('shake'), 400);
+            }
+            if(pHP <= 0) { alert("Game Over! 重新開始挑戰"); location.reload(); }
+            generate();
+        }
+        updateUI();
+    }
+
+    function choose(type) {
+        let mult = hasDouble ? 2 : 1;
+        if(type === 'atk') {
+            mHP -= (30 * mult);
+            document.getElementById('monster-node').classList.add('hit-anim');
+            if(mHP <= 0) { mHP = 100; lv++; alert("LEVEL UP! 進入下一區域"); }
+        } else {
+            pEXP += (30 * mult);
+        }
+        hasDouble = false;
+        document.getElementById('reward-modal').style.display = 'none';
+        clearScratch();
+        generate();
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
